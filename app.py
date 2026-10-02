@@ -137,6 +137,9 @@ def jobs():
 # ============================================================
 # Job Application endpoint — receives form + sends styled email
 # ============================================================
+    app.logger.info("Application submit — MAIL_USERNAME=%r MAIL_RECIPIENT=%r",
+                    os.getenv("MAIL_USERNAME"), os.getenv("MAIL_RECIPIENT"))
+                    
 @app.route("/jobs/apply", methods=["POST"])
 def jobs_apply():
     saved_paths = []
@@ -249,12 +252,15 @@ def send_email(subject, html_body, attachments=None):
     # Base64url-encode the raw MIME message
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
 
-    # Send via Gmail REST API
+       # Send via Gmail REST API
     service = get_gmail_service()
-    service.users().messages().send(
+    result = service.users().messages().send(
         userId="me",
         body={"raw": raw}
     ).execute()
+
+    app.logger.info("Gmail API response: %s", result)
+    app.logger.info("Sent to: %s, From: %s, Subject: %s", recipient, sender, subject)
 
 
 # ============================================================
