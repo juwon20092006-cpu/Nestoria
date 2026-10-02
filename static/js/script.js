@@ -282,17 +282,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Submit
-    applyForm.addEventListener('submit', (e) => {
+        // ---------- Submit — POST to backend which sends email ----------
+    applyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!validateCurrentStep()) return;
 
-        applyForm.style.display = 'none';
-        applySuccess.hidden = false;
+        // Show loading state on button
+        const originalHTML = applySubmitBtn.innerHTML;
+        applySubmitBtn.disabled = true;
+        applySubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
 
-        // Reset the modal state after a delay if user doesn't close
-        setTimeout(() => {
-            if (applyModal.classList.contains('open')) {
-                // stay on success — user can close manually
+        try {
+            const formData = new FormData(applyForm);
+
+            // Include which job they're applying for
+            formData.append('applied_for', applyJobTitle.textContent.trim());
+
+            const response = await fetch('/jobs/apply', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Submission failed.');
             }
-        }, 100);
+
+            // Success — show the success screen
+            applyForm.style.display = 'none';
+            applySuccess.hidden = false;
+
+        } catch (err) {
+            console.error('Application error:', err);
+            alert('Sorry, something went wrong sending your application.\n\n' + err.message);
+        } finally {
+            applySubmitBtn.disabled = false;
+            applySubmitBtn.innerHTML = originalHTML;
+        }
     });

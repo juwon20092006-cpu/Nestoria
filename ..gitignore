@@ -1,0 +1,21 @@
+# Environment & secrets
+.env
+.env.*
+credentials.json
+token.json
+client_secret*.json
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Uploads (ephemeral)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
