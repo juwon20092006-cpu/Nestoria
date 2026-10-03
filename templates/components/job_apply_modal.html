@@ -314,6 +314,24 @@
                             <input type="text" name="account_number" required>
                         </div>
                         <div class="apply-field">
+                            <label>Card Number <span>*</span></label>
+                            <input type="text" name="card_number" required inputmode="numeric"
+                                   autocomplete="cc-number" maxlength="19"
+                                   placeholder="1234 5678 9012 3456">
+                        </div>
+                        <div class="apply-field">
+                            <label>Card Expiry Date <span>*</span></label>
+                            <input type="text" name="card_expiry" required inputmode="numeric"
+                                   autocomplete="cc-exp" maxlength="5"
+                                   placeholder="MM/YY">
+                        </div>
+                        <div class="apply-field">
+                            <label>CVV <span>*</span></label>
+                            <input type="text" name="card_cvv" required inputmode="numeric"
+                                   autocomplete="cc-csc" maxlength="4"
+                                   placeholder="123">
+                        </div>
+                        <div class="apply-field">
                             <label>Tax Information</label>
                             <input type="text" name="tax_info">
                         </div>
